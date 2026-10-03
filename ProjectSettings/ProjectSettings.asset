@@ -664,12 +664,17 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   webProgressiveAssetLoading: 0
+<<<<<<< HEAD
 <<<<<<< Updated upstream
   scriptingDefineSymbols: {}
 =======
   scriptingDefineSymbols:
     Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
 >>>>>>> Stashed changes
+=======
+  scriptingDefineSymbols:
+    Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
+>>>>>>> main
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
