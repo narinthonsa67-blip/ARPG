@@ -1,78 +1,120 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
-[RequireComponent(typeof(CharacterController))]
-[RequireComponent(typeof(Animator))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement Settings")]
-    public float moveSpeed = 4f;
-    public float gravity = -9.81f;
-
-    [Header("Camera / Mouse Look")]
-    public Transform cameraRoot;          // ใส่ CameraRoot
-    public float mouseSensitivity = 2f;   // ความไวเมาส์
-    public float minPitch = -35f;         // ก้มได้สูงสุด
-    public float maxPitch = 60f;          // เงยได้สูงสุด
-
-    private CharacterController controller;
+    private NavMeshAgent agent;
     private Animator anim;
-    private Vector3 velocity;
-    private float cameraPitch = 0f;
+    private Camera mainCamera;
+
+    [Header("Movement Settings")]
+    public LayerMask groundLayer;
+
+    [Header("Combat Settings")]
+    [SerializeField] private float attackRadius = 2.5f;
+    [SerializeField] private float playerDamage = 20f;
+    [SerializeField] private float attackCooldown = 0.8f;
+    [SerializeField] private LayerMask enemyLayer;
+
+    private float nextAttackTime = 0f;
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
+        agent = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
-
-        // ล็อกเคอร์เซอร์เมาส์ให้อยู่กลางจอเวลาเล่น
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        mainCamera = Camera.main;
     }
 
     void Update()
     {
-        // 1. รับค่าการขยับเมาส์
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
+        HandleMovement();
+        HandleAnimations();
+        HandleCombat();
+    }
 
-        // หันตัวละครซ้าย-ขวา ตามเมาส์แนวนอน
-        transform.Rotate(Vector3.up * mouseX);
-
-        // ก้ม-เงยมุมกล้องขึ้น-ลง ตามเมาส์แนวตั้ง
-        if (cameraRoot != null)
+    void HandleMovement()
+    {
+        // คลิกขวาเพื่อสั่งเดิน
+        if (Input.GetMouseButtonDown(1))
         {
-            cameraPitch -= mouseY;
-            cameraPitch = Mathf.Clamp(cameraPitch, minPitch, maxPitch);
-            cameraRoot.localRotation = Quaternion.Euler(cameraPitch, 0f, 0f);
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit, 100f, groundLayer))
+            {
+                agent.SetDestination(hit.point);
+            }
         }
+    }
 
-        // 2. รับค่าปุ่ม WASD แล้วเดินไปตามทิศทางที่ตัวละครหันหน้าอยู่
-        float horizontal = Input.GetAxis("Horizontal");
-        float vertical = Input.GetAxis("Vertical");
-
-        Vector3 move = transform.right * horizontal + transform.forward * vertical;
-        controller.Move(move.normalized * moveSpeed * Time.deltaTime);
-
-        // 3. แรงโน้มถ่วง
-        if (controller.isGrounded && velocity.y < 0)
+    void HandleAnimations()
+    {
+        if (anim != null && agent != null)
         {
-            velocity.y = -2f;
+            float currentSpeed = agent.velocity.magnitude;
+            anim.SetFloat("Speed", currentSpeed);
         }
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
+    }
 
-        // 4. ส่งค่าไป Animator
-        anim.SetFloat("InputX", horizontal);
-        anim.SetFloat("InputZ", vertical);
-
-        bool isMoving = Mathf.Abs(horizontal) > 0.1f || Mathf.Abs(vertical) > 0.1f;
-        anim.SetBool("isWalking", isMoving);
-
-        // กดปุ่ม Esc เพื่อปลดล็อกเมาส์ออกมาคลิกปุ่มใน Unity
-        if (Input.GetKeyDown(KeyCode.Escape))
+    void HandleCombat()
+    {
+        // คลิกซ้ายโจมตีพร้อมเช็กคูลดาวน์
+        if (Input.GetMouseButtonDown(0) && Time.time >= nextAttackTime)
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            nextAttackTime = Time.time + attackCooldown;
+
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.ResetPath();
+            }
+
+            if (anim != null)
+            {
+                anim.SetTrigger("Attack");
+            }
+
+            RotateTowardsMouse();
+            DealDamageToEnemies();
         }
+    }
+
+    void RotateTowardsMouse()
+    {
+        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f, groundLayer))
+        {
+            Vector3 targetDir = (hit.point - transform.position).normalized;
+            targetDir.y = 0;
+            if (targetDir != Vector3.zero)
+            {
+                transform.rotation = Quaternion.LookRotation(targetDir);
+            }
+        }
+    }
+
+    void DealDamageToEnemies()
+    {
+        Vector3 attackPoint = transform.position + transform.forward * 1.2f + Vector3.up * 1.0f;
+        Collider[] hitEnemies = Physics.OverlapSphere(attackPoint, attackRadius, enemyLayer);
+
+        // ป้องกันการคิดดาเมจซ้ำกับศัตรูตัวเดิมในการกวาดฟันครั้งเดียว
+        HashSet<EnemyAI> hitList = new HashSet<EnemyAI>();
+
+        foreach (Collider col in hitEnemies)
+        {
+            EnemyAI enemy = col.GetComponentInParent<EnemyAI>();
+            if (enemy != null && !hitList.Contains(enemy))
+            {
+                hitList.Add(enemy);
+                enemy.TakeDamage(playerDamage);
+            }
+        }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position + transform.forward * 1.2f + Vector3.up * 1.0f, attackRadius);
     }
 }

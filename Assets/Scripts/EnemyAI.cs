@@ -1,114 +1,100 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum EnemyState
-{
-    Idle,
-    Chase,
-    Attack
-}
-
-[RequireComponent(typeof(NavMeshAgent))]
 public class EnemyAI : MonoBehaviour
 {
     [Header("Enemy Stats")]
-    [SerializeField] private float maxHealth = 60f;
+    [SerializeField] private float maxHealth = 80f;
     private float currentHealth;
-
-    [Header("State Machine & Detection")]
-    [SerializeField] private float chaseRange = 8f;
-    [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private float attackDamage = 10f;
-    [SerializeField] private float attackCooldown = 1.5f;
+    [SerializeField] private float attackRange = 2.0f;     // ระยะยืนตี
+    [SerializeField] private float chaseRange = 8.0f;      // ระยะมองเห็น (ต้องเข้าใกล้ระยะนี้ถึงจะวิ่งหา)
+    [SerializeField] private float attackCooldown = 1.0f;
 
-    [Header("Loot Drop")]
-    [SerializeField] private GameObject expOrbPrefab; // ลาก Prefab ExpOrb มาใส่
+    [Header("Drops")]
+    [SerializeField] private GameObject expOrbPrefab;
 
     private NavMeshAgent agent;
+    private Animator anim;
     private Transform playerTransform;
-    private EnemyState currentState = EnemyState.Idle;
-    private float lastAttackTime;
-    private Animator animator;
+    private float nextAttackTime = 0f;
 
-    private static readonly int SpeedHash = Animator.StringToHash("Speed");
-    private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
-
-    private void Awake()
+    void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        animator = GetComponentInChildren<Animator>();
+        anim = GetComponent<Animator>();
         currentHealth = maxHealth;
-    }
 
-    private void Start()
-    {
-        GameObject playerObj = GameObject.FindWithTag("Player");
-        if (playerObj != null)
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
         {
-            playerTransform = playerObj.transform;
+            playerTransform = player.transform;
         }
     }
 
-    private void Update()
+    void Update()
     {
         if (playerTransform == null) return;
 
-        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+        float distance = Vector3.Distance(transform.position, playerTransform.position);
 
-        switch (currentState)
+        // ส่งความเร็วไปคุมแอนิเมชันเดิน/ยืนของศัตรู
+        if (anim != null && agent != null)
         {
-            case EnemyState.Idle:
-                agent.isStopped = true;
-                if (distanceToPlayer <= chaseRange)
-                {
-                    currentState = EnemyState.Chase;
-                }
-                break;
-
-            case EnemyState.Chase:
-                agent.isStopped = false;
-                agent.SetDestination(playerTransform.position);
-
-                if (distanceToPlayer <= attackRange)
-                {
-                    currentState = EnemyState.Attack;
-                }
-                else if (distanceToPlayer > chaseRange)
-                {
-                    currentState = EnemyState.Idle;
-                }
-                break;
-
-            case EnemyState.Attack:
-                agent.isStopped = true;
-                Vector3 lookDirection = (playerTransform.position - transform.position).normalized;
-                lookDirection.y = 0;
-                if (lookDirection != Vector3.zero)
-                {
-                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 10f);
-                }
-
-                if (Time.time >= lastAttackTime + attackCooldown)
-                {
-                    PerformAttack();
-                    lastAttackTime = Time.time;
-                }
-
-                if (distanceToPlayer > attackRange)
-                {
-                    currentState = EnemyState.Chase;
-                }
-                break;
+            anim.SetFloat("Speed", agent.velocity.magnitude);
         }
 
-        UpdateAnimation();
+        // กรณีที่ 1: อยู่นอกระยะมองเห็น -> ยืนเฉยๆ ไม่วิ่งตาม
+        if (distance > chaseRange)
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+            }
+            return;
+        }
+
+        // กรณีที่ 2: อยู่ในระยะมองเห็น แต่นอกระยะโจมตี -> วิ่งไล่ตาม
+        if (distance > attackRange)
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+                agent.SetDestination(playerTransform.position);
+            }
+        }
+        // กรณีที่ 3: เข้าระยะโจมตีแล้ว -> หยุดเดินแล้วตี
+        else
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+            }
+
+            // หันหน้าหาผู้เล่น
+            Vector3 targetDir = (playerTransform.position - transform.position).normalized;
+            targetDir.y = 0;
+            if (targetDir != Vector3.zero)
+            {
+                transform.rotation = Quaternion.LookRotation(targetDir);
+            }
+
+            // โจมตีตามรอบคูลดาวน์
+            if (Time.time >= nextAttackTime)
+            {
+                nextAttackTime = Time.time + attackCooldown;
+                AttackPlayer();
+            }
+        }
     }
 
-    private void PerformAttack()
+    void AttackPlayer()
     {
-        if (animator != null)
+        // สั่งเล่นแอนิเมชันโจมตีทันที
+        if (anim != null)
         {
-            animator.SetTrigger(AttackTriggerHash);
+            anim.SetTrigger("Attack");
         }
 
         if (playerTransform.TryGetComponent<PlayerStats>(out PlayerStats playerStats))
@@ -120,7 +106,7 @@ public class EnemyAI : MonoBehaviour
     public void TakeDamage(float amount)
     {
         currentHealth -= amount;
-        Debug.Log($"Enemy took {amount} damage! Remaining HP: {currentHealth}");
+        Debug.Log($"Enemy took {amount} damage! Current HP: {currentHealth}");
 
         if (currentHealth <= 0)
         {
@@ -138,18 +124,12 @@ public class EnemyAI : MonoBehaviour
         Destroy(gameObject);
     }
 
-    private void UpdateAnimation()
-    {
-        if (animator != null)
-        {
-            animator.SetFloat(SpeedHash, agent.velocity.magnitude);
-        }
-    }
-
+    // วาดวงระยะมองเห็นในหน้า Scene ให้สังเกตง่ายๆ
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, chaseRange);
+
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
     }

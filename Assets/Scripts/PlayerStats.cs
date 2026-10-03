@@ -2,57 +2,64 @@ using UnityEngine;
 
 public class PlayerStats : MonoBehaviour
 {
-    [Header("Stats Data")]
-    public CharacterStatsData statsData;
+    [Header("Health Settings")]
+    [SerializeField] private float maxHealth = 100f;
+    private float currentHealth;
+
+    [Header("Experience Settings")]
+    [SerializeField] private float currentExp = 0f;
+
+    private Animator anim;
 
     private void Awake()
     {
-        if (statsData != null)
-        {
-            statsData.ResetStats();
-        }
+        anim = GetComponent<Animator>();
+        currentHealth = maxHealth;
     }
 
     public void TakeDamage(float amount)
     {
-        if (statsData == null) return;
+        currentHealth -= amount;
+        Debug.Log($"Player took {amount} damage! Current HP: {currentHealth}");
 
-        statsData.currentHealth -= amount;
-        Debug.Log($"Player took {amount} damage! Current HP: {statsData.currentHealth}/{statsData.maxHealth}");
+        // ไม่สั่งเล่นท่า Hit เพื่อให้เคลื่อนไหวได้อย่างต่อเนื่อง
 
-        if (statsData.currentHealth <= 0)
+        if (currentHealth <= 0)
         {
             Die();
         }
     }
 
-    public void AddExperience(int amount)
+    public void AddExperience(float amount)
     {
-        if (statsData == null) return;
-
-        statsData.currentExp += amount;
-        Debug.Log($"Gained {amount} EXP! Total EXP: {statsData.currentExp}/{statsData.expToNextLevel}");
-
-        // ถ้า EXP เต็มหรือเกิน ให้ Level Up ทันทีตามโจทย์
-        while (statsData.currentExp >= statsData.expToNextLevel)
-        {
-            LevelUp();
-        }
-    }
-
-    private void LevelUp()
-    {
-        statsData.currentExp -= statsData.expToNextLevel;
-        statsData.level++;
-        statsData.expToNextLevel = Mathf.RoundToInt(statsData.expToNextLevel * statsData.expGrowthMultiplier);
-        statsData.maxHealth += 20f;
-        statsData.currentHealth = statsData.maxHealth;
-
-        Debug.Log($"<color=green>LEVEL UP! Reached Level {statsData.level}!</color> Next EXP: {statsData.expToNextLevel}");
+        currentExp += amount;
+        Debug.Log($"Player gained {amount} EXP! Total EXP: {currentExp}");
     }
 
     private void Die()
     {
-        Debug.Log("<color=red>Player Died!</color>");
+        Debug.Log("Player has died!");
+
+        if (anim != null)
+        {
+            anim.SetTrigger("Die");
+        }
+
+        // ปิดการควบคุมเมื่อตัวละครตาย
+        if (TryGetComponent<PlayerController>(out PlayerController controller))
+        {
+            controller.enabled = false;
+        }
+
+        if (TryGetComponent<UnityEngine.AI.NavMeshAgent>(out UnityEngine.AI.NavMeshAgent agent))
+        {
+            agent.isStopped = true;
+            agent.enabled = false;
+        }
+
+        if (TryGetComponent<Collider>(out Collider col))
+        {
+            col.enabled = false;
+        }
     }
 }
