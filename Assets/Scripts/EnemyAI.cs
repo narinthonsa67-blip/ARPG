@@ -22,7 +22,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float attackCooldown = 1.5f;
 
     [Header("Loot Drop")]
-    [SerializeField] private GameObject expOrbPrefab; // ลาก Prefab ลูกแก้ว EXP มาใส่ตรงนี้
+    [SerializeField] private GameObject expOrbPrefab; // ลาก Prefab ExpOrb มาใส่
 
     private NavMeshAgent agent;
     private Transform playerTransform;
@@ -42,7 +42,6 @@ public class EnemyAI : MonoBehaviour
 
     private void Start()
     {
-        // ค้นหาตำแหน่ง Player อัตโนมัติจาก Tag หรือคอมโพเนนต์
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj != null)
         {
@@ -82,7 +81,6 @@ public class EnemyAI : MonoBehaviour
 
             case EnemyState.Attack:
                 agent.isStopped = true;
-                // หันหน้าเข้าหาผู้เล่น
                 Vector3 lookDirection = (playerTransform.position - transform.position).normalized;
                 lookDirection.y = 0;
                 if (lookDirection != Vector3.zero)
@@ -90,7 +88,6 @@ public class EnemyAI : MonoBehaviour
                     transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 10f);
                 }
 
-                // โจมตีตาม Cooldown
                 if (Time.time >= lastAttackTime + attackCooldown)
                 {
                     PerformAttack();
@@ -114,14 +111,12 @@ public class EnemyAI : MonoBehaviour
             animator.SetTrigger(AttackTriggerHash);
         }
 
-        // ลดเลือดผู้เล่นถ้ามีคอมโพเนนต์ PlayerStats
         if (playerTransform.TryGetComponent<PlayerStats>(out PlayerStats playerStats))
         {
             playerStats.TakeDamage(attackDamage);
         }
     }
 
-    // ฟังก์ชันรับดาเมจที่ PlayerCombat.cs เรียกหา
     public void TakeDamage(float amount)
     {
         currentHealth -= amount;
@@ -135,7 +130,6 @@ public class EnemyAI : MonoBehaviour
 
     private void Die()
     {
-        // ดรอปลูกแก้ว EXP ตรงจุดที่ศัตรูตาย
         if (expOrbPrefab != null)
         {
             Instantiate(expOrbPrefab, transform.position + Vector3.up * 0.5f, Quaternion.identity);
@@ -154,7 +148,6 @@ public class EnemyAI : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        // วาดระยะตรวจจับ (สีเหลือง) และระยะตี (สีแดง)
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, chaseRange);
         Gizmos.color = Color.red;

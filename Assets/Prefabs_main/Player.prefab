@@ -1770,13 +1770,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4415389448801055126}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.08715578, y: 0, z: 0, w: 0.9961947}
-  m_LocalPosition: {x: 0, y: 0.5, z: -3.5}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.5, z: -4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6928536529248752228}
-  m_LocalEulerAnglesHint: {x: 10, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!20 &2505085247705009101
 Camera:
   m_ObjectHideFlags: 0
@@ -3022,6 +3022,7 @@ GameObject:
   - component: {fileID: 3015204569873341294}
   - component: {fileID: 4432185476061372870}
   - component: {fileID: 5169200209660618625}
+  - component: {fileID: 7399172162393601052}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -3128,6 +3129,19 @@ MonoBehaviour:
   mouseSensitivity: 2
   minPitch: -35
   maxPitch: 60
+--- !u!114 &7399172162393601052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7028098728026009721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76b8206c77e4d3143ba5e309dbf94127, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
+  statsData: {fileID: 11400000, guid: de83c7283f6f97141bc58aa16bd226eb, type: 2}
 --- !u!1 &7188326786879923762
 GameObject:
   m_ObjectHideFlags: 0
