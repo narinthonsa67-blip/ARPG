@@ -13,6 +13,7 @@ public class ExpOrb : MonoBehaviour
     [SerializeField] private float flySpeed = 8f;       // ความเร็วตอนพุ่งเข้าหา
 
     private Transform playerTransform;
+    private PlayerStats playerStats;
     private bool isFlyingToPlayer = false;
 
     private void Start()
@@ -22,6 +23,7 @@ public class ExpOrb : MonoBehaviour
         if (player != null)
         {
             playerTransform = player.transform;
+            playerStats = player.GetComponent<PlayerStats>();
         }
     }
 
@@ -33,7 +35,8 @@ public class ExpOrb : MonoBehaviour
         // 2. ระบบดูดเข้าหาผู้เล่น
         if (playerTransform != null)
         {
-            float distance = Vector3.Distance(transform.position, playerTransform.position);
+            Vector3 targetPos = playerTransform.position + Vector3.up * 1f;
+            float distance = Vector3.Distance(transform.position, targetPos);
 
             if (distance <= magnetRange)
             {
@@ -42,26 +45,35 @@ public class ExpOrb : MonoBehaviour
 
             if (isFlyingToPlayer)
             {
-                // พุ่งเข้าหาตำแหน่งตัวผู้เล่น (ยกแกน Y ขึ้นเล็กน้อยระดับอก/เอว)
-                Vector3 targetPos = playerTransform.position + Vector3.up * 1f;
+                // พุ่งเข้าหาตำแหน่งตัวผู้เล่น
                 transform.position = Vector3.MoveTowards(transform.position, targetPos, flySpeed * Time.deltaTime);
+
+                // ป้องกันบั๊กฟิสิกส์: ถ้าพุ่งมาใกล้มากแล้ว (ระยะต่ำกว่า 0.4 เมตร) ให้เก็บเข้าตัวทันที
+                if (distance < 0.4f)
+                {
+                    CollectOrb();
+                }
             }
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // เมื่อดูดมาแตะโดนตัวผู้เล่น
-        PlayerStats playerStats = other.GetComponent<PlayerStats>();
-        if (playerStats == null)
+        // เมื่อดูดมาชนโดน Collider ของผู้เล่น
+        if (other.CompareTag("Player") || other.GetComponentInParent<PlayerStats>() != null)
         {
-            playerStats = other.GetComponentInParent<PlayerStats>();
+            CollectOrb();
         }
+    }
 
+    private void CollectOrb()
+    {
         if (playerStats != null)
         {
             playerStats.AddExperience(expAmount);
-            Destroy(gameObject); // ชนแล้วทำลายทิ้ง
         }
+
+        // ทำลายลูกแก้วทิ้งทันที
+        Destroy(gameObject);
     }
 }
