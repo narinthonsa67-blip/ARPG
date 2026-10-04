@@ -4,27 +4,36 @@ using UnityEngine.AI;
 public class EnemyAI : MonoBehaviour
 {
     [Header("Enemy Stats")]
-    [SerializeField] private float maxHealth = 80f;
+    [SerializeField] private float maxHealth = 50f;
     private float currentHealth;
+    private bool isDead = false;
+
+    [Header("Detection & Movement Settings")]
+    [SerializeField] private float chaseRange = 8f;   // ระยะตรวจจับ
+    [SerializeField] private float attackRange = 1.5f; // ระยะโจมตีประชิด
+
+    [Header("Combat Settings")]
+    [SerializeField] private float attackCooldown = 1.5f;
     [SerializeField] private float attackDamage = 10f;
-    [SerializeField] private float attackRange = 2.0f;     // ระยะยืนตี
-    [SerializeField] private float chaseRange = 8.0f;      // ระยะมองเห็น (ต้องเข้าใกล้ระยะนี้ถึงจะวิ่งหา)
-    [SerializeField] private float attackCooldown = 1.0f;
+    private float nextAttackTime;
 
-    [Header("Drops")]
-    [SerializeField] private GameObject expOrbPrefab;
+    [Header("Drop Settings")]
+    [SerializeField] private GameObject expOrbPrefab; // Prefab ลูกแก้ว EXP
+    [SerializeField] private int dropOrbCount = 6;     // จำนวนลูกแก้วที่จะแตกกระจาย
 
+    private Transform playerTransform;
     private NavMeshAgent agent;
     private Animator anim;
-    private Transform playerTransform;
-    private float nextAttackTime = 0f;
 
-    void Start()
+    private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
         currentHealth = maxHealth;
+    }
 
+    private void Start()
+    {
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
@@ -32,81 +41,98 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    void Update()
+    private void Update()
     {
-        if (playerTransform == null) return;
+        if (isDead || playerTransform == null) return;
 
-        float distance = Vector3.Distance(transform.position, playerTransform.position);
+        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
-        // ส่งความเร็วไปคุมแอนิเมชันเดิน/ยืนของศัตรู
-        if (anim != null && agent != null)
+        if (distanceToPlayer > chaseRange)
         {
-            anim.SetFloat("Speed", agent.velocity.magnitude);
+            StopMoving();
         }
-
-        // กรณีที่ 1: อยู่นอกระยะมองเห็น -> ยืนเฉยๆ ไม่วิ่งตาม
-        if (distance > chaseRange)
+        else if (distanceToPlayer > attackRange)
         {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = true;
-                agent.ResetPath();
-            }
-            return;
+            ChasePlayer();
         }
-
-        // กรณีที่ 2: อยู่ในระยะมองเห็น แต่นอกระยะโจมตี -> วิ่งไล่ตาม
-        if (distance > attackRange)
-        {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = false;
-                agent.SetDestination(playerTransform.position);
-            }
-        }
-        // กรณีที่ 3: เข้าระยะโจมตีแล้ว -> หยุดเดินแล้วตี
         else
         {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = true;
-            }
-
-            // หันหน้าหาผู้เล่น
-            Vector3 targetDir = (playerTransform.position - transform.position).normalized;
-            targetDir.y = 0;
-            if (targetDir != Vector3.zero)
-            {
-                transform.rotation = Quaternion.LookRotation(targetDir);
-            }
-
-            // โจมตีตามรอบคูลดาวน์
-            if (Time.time >= nextAttackTime)
-            {
-                nextAttackTime = Time.time + attackCooldown;
-                AttackPlayer();
-            }
+            PerformAttack();
         }
     }
 
-    void AttackPlayer()
+    private void StopMoving()
     {
-        // สั่งเล่นแอนิเมชันโจมตีทันที
-        if (anim != null)
+        if (agent.isOnNavMesh && !agent.isStopped)
         {
-            anim.SetTrigger("Attack");
+            agent.isStopped = true;
+            agent.ResetPath();
         }
 
-        if (playerTransform.TryGetComponent<PlayerStats>(out PlayerStats playerStats))
+        if (anim != null)
         {
-            playerStats.TakeDamage(attackDamage);
+            anim.SetBool("IsMoving", false);
+        }
+    }
+
+    private void ChasePlayer()
+    {
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(playerTransform.position);
+        }
+
+        if (anim != null)
+        {
+            anim.SetBool("IsMoving", true);
+        }
+    }
+
+    private void PerformAttack()
+    {
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+        }
+
+        if (anim != null)
+        {
+            anim.SetBool("IsMoving", false);
+        }
+
+        Vector3 direction = (playerTransform.position - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 10f * Time.deltaTime);
+        }
+
+        if (Time.time >= nextAttackTime)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("Attack");
+            }
+
+            PlayerStats playerStats = playerTransform.GetComponent<PlayerStats>();
+            if (playerStats != null)
+            {
+                playerStats.TakeDamage(attackDamage);
+            }
+
+            nextAttackTime = Time.time + attackCooldown;
         }
     }
 
     public void TakeDamage(float amount)
     {
+        if (isDead) return;
+
         currentHealth -= amount;
-        Debug.Log($"Enemy took {amount} damage! Current HP: {currentHealth}");
+        Debug.Log($"{gameObject.name} took {amount} damage! Current HP: {currentHealth}");
+
+        chaseRange = 30f; // ถ้าโดนดาเมจจะหันมาไล่กวดทันที
 
         if (currentHealth <= 0)
         {
@@ -116,15 +142,44 @@ public class EnemyAI : MonoBehaviour
 
     private void Die()
     {
-        if (expOrbPrefab != null)
+        if (isDead) return;
+        isDead = true;
+
+        if (agent != null && agent.isOnNavMesh)
         {
-            Instantiate(expOrbPrefab, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+            agent.isStopped = true;
+            agent.enabled = false;
         }
 
-        Destroy(gameObject);
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+        {
+            col.enabled = false;
+        }
+
+        if (anim != null)
+        {
+            anim.SetTrigger("Die");
+        }
+
+        // เสกลูกแก้ว EXP กระจายระดับพื้น
+        if (expOrbPrefab != null)
+        {
+            for (int i = 0; i < dropOrbCount; i++)
+            {
+                Vector3 spawnOffset = new Vector3(
+                    Random.Range(-0.25f, 0.25f),
+                    0.2f, // ลดระดับความสูงตอนเกิดให้ต่ำลงมา
+                    Random.Range(-0.25f, 0.25f)
+                );
+
+                Instantiate(expOrbPrefab, transform.position + spawnOffset, Quaternion.identity);
+            }
+        }
+
+        Destroy(gameObject, 0.8f);
     }
 
-    // วาดวงระยะมองเห็นในหน้า Scene ให้สังเกตง่ายๆ
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;

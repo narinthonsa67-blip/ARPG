@@ -1,39 +1,77 @@
 using UnityEngine;
+using System.Collections;
 
 public class ExpOrb : MonoBehaviour
 {
     [Header("EXP Value")]
-    [SerializeField] private int expAmount = 50;
+    [SerializeField] private int expAmount = 10;
 
     [Header("Visual Effects")]
-    [SerializeField] private float rotateSpeed = 100f;
+    [SerializeField] private float rotateSpeed = 120f;
 
     [Header("Magnet Settings")]
-    [SerializeField] private float magnetRange = 3f;   // ระยะที่เริ่มดูดเข้าหาผู้เล่น
-    [SerializeField] private float flySpeed = 8f;       // ความเร็วตอนพุ่งเข้าหา
+    [SerializeField] private float delayBeforeMagnet = 0.5f; // เวลาหน่วงให้เห็นลูกแก้วกระจายตัวบนพื้น
+    [SerializeField] private float magnetRange = 4f;         // ระยะที่เริ่มดูดเข้าหาตัว
+    [SerializeField] private float flySpeed = 7f;            // ความเร็วตอนบินเข้าหาตัว
 
     private Transform playerTransform;
     private PlayerStats playerStats;
+    private Rigidbody rb;
+    private bool canMagnet = false;
     private bool isFlyingToPlayer = false;
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
 
     private void Start()
     {
-        // ค้นหาตัวผู้เล่นจาก Tag
+        // ค้นหาผู้เล่น
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
             playerTransform = player.transform;
             playerStats = player.GetComponent<PlayerStats>();
         }
+
+        // ปรับทิศทางแรงดีดให้กระจายตัวออกด้านข้างเลียดพื้น
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+
+            // สุ่มทิศทางแนวนอน (X, Z) และยกแกน Y ขึ้นเพียงเล็กน้อย (0.35f)
+            Vector2 randomCircle = Random.insideUnitCircle.normalized;
+            Vector3 popDirection = new Vector3(randomCircle.x, 0.35f, randomCircle.y).normalized;
+
+            // สุ่มแรงผลักให้นุ่มนวล พอดีกับการกระจายตัว
+            float popForce = Random.Range(2.5f, 4f);
+            rb.AddForce(popDirection * popForce, ForceMode.Impulse);
+        }
+
+        StartCoroutine(EnableMagnetRoutine());
+    }
+
+    private IEnumerator EnableMagnetRoutine()
+    {
+        yield return new WaitForSeconds(delayBeforeMagnet);
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.isKinematic = true; // ล็อคฟิสิกส์เตรียมลอยเข้าหาตัว
+        }
+
+        canMagnet = true;
     }
 
     private void Update()
     {
-        // 1. หมุนตัวเบาๆ
-        transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
+        // หมุนตัวเพิ่มมิติ
+        transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime, Space.World);
 
-        // 2. ระบบดูดเข้าหาผู้เล่น
-        if (playerTransform != null)
+        // ระบบดูดเข้าหาผู้เล่น
+        if (canMagnet && playerTransform != null)
         {
             Vector3 targetPos = playerTransform.position + Vector3.up * 1f;
             float distance = Vector3.Distance(transform.position, targetPos);
@@ -45,10 +83,8 @@ public class ExpOrb : MonoBehaviour
 
             if (isFlyingToPlayer)
             {
-                // พุ่งเข้าหาตำแหน่งตัวผู้เล่น
                 transform.position = Vector3.MoveTowards(transform.position, targetPos, flySpeed * Time.deltaTime);
 
-                // ป้องกันบั๊กฟิสิกส์: ถ้าพุ่งมาใกล้มากแล้ว (ระยะต่ำกว่า 0.4 เมตร) ให้เก็บเข้าตัวทันที
                 if (distance < 0.4f)
                 {
                     CollectOrb();
@@ -59,8 +95,7 @@ public class ExpOrb : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // เมื่อดูดมาชนโดน Collider ของผู้เล่น
-        if (other.CompareTag("Player") || other.GetComponentInParent<PlayerStats>() != null)
+        if (canMagnet && (other.CompareTag("Player") || other.GetComponentInParent<PlayerStats>() != null))
         {
             CollectOrb();
         }
@@ -73,7 +108,6 @@ public class ExpOrb : MonoBehaviour
             playerStats.AddExperience(expAmount);
         }
 
-        // ทำลายลูกแก้วทิ้งทันที
         Destroy(gameObject);
     }
 }
