@@ -3124,6 +3124,7 @@ GameObject:
   - component: {fileID: 3885727266176592347}
   - component: {fileID: 8559547754115197015}
   - component: {fileID: 2935108133070959158}
+  - component: {fileID: 1529464363563742491}
   m_Layer: 6
   m_Name: Enemy
   m_TagString: Enemy
@@ -3230,11 +3231,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
   maxHealth: 60
-  attackDamage: 10
-  attackRange: 1.5
   chaseRange: 8
+  attackRange: 1.5
   attackCooldown: 1.5
+  attackDamage: 10
   expOrbPrefab: {fileID: 6546247425339137852, guid: b8d05c4ff0b3eb94fa34f3a9dc8d67e6, type: 3}
+  dropOrbCount: 6
+--- !u!111 &1529464363563742491
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3542072398392788211}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 0}
+  m_Animations: []
+  m_WrapMode: 0
+  m_PlayAutomatically: 1
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
 --- !u!1 &3628858415642928965
 GameObject:
   m_ObjectHideFlags: 0
