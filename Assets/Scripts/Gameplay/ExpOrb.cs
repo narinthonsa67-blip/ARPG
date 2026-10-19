@@ -15,7 +15,8 @@ public class ExpOrb : MonoBehaviour
     [SerializeField] private float flySpeed = 7f;            // ความเร็วตอนบินเข้าหาตัว
 
     private Transform playerTransform;
-    private PlayerStats playerStats;
+    // --- แก้ไขจุดที่ 1: เปลี่ยนจาก PlayerStats เป็น PlayerController ---
+    private PlayerController playerController;
     private Rigidbody rb;
     private bool canMagnet = false;
     private bool isFlyingToPlayer = false;
@@ -32,19 +33,18 @@ public class ExpOrb : MonoBehaviour
         if (player != null)
         {
             playerTransform = player.transform;
-            playerStats = player.GetComponent<PlayerStats>();
+            // --- แก้ไขจุดที่ 2: ดึง Component PlayerController ---
+            playerController = player.GetComponent<PlayerController>();
         }
 
-        // ปรับทิศทางแรงดีดให้กระจายตัวออกด้านข้างเลียดพื้น
+        // ปรับทิศทางแรงดีดให้กระจายตัวออกด้านข้างเลียดพื้น (คงเดิม)
         if (rb != null)
         {
             rb.isKinematic = false;
 
-            // สุ่มทิศทางแนวนอน (X, Z) และยกแกน Y ขึ้นเพียงเล็กน้อย (0.35f)
             Vector2 randomCircle = Random.insideUnitCircle.normalized;
             Vector3 popDirection = new Vector3(randomCircle.x, 0.35f, randomCircle.y).normalized;
 
-            // สุ่มแรงผลักให้นุ่มนวล พอดีกับการกระจายตัว
             float popForce = Random.Range(2.5f, 4f);
             rb.AddForce(popDirection * popForce, ForceMode.Impulse);
         }
@@ -67,10 +67,10 @@ public class ExpOrb : MonoBehaviour
 
     private void Update()
     {
-        // หมุนตัวเพิ่มมิติ
+        // หมุนตัวเพิ่มมิติ (คงเดิม)
         transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime, Space.World);
 
-        // ระบบดูดเข้าหาผู้เล่น
+        // ระบบดูดเข้าหาผู้เล่น (คงเดิม)
         if (canMagnet && playerTransform != null)
         {
             Vector3 targetPos = playerTransform.position + Vector3.up * 1f;
@@ -95,7 +95,8 @@ public class ExpOrb : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (canMagnet && (other.CompareTag("Player") || other.GetComponentInParent<PlayerStats>() != null))
+        // --- แก้ไขจุดที่ 3: เช็ก PlayerController แทน PlayerStats ---
+        if (canMagnet && (other.CompareTag("Player") || other.GetComponentInParent<PlayerController>() != null))
         {
             CollectOrb();
         }
@@ -103,9 +104,10 @@ public class ExpOrb : MonoBehaviour
 
     private void CollectOrb()
     {
-        if (playerStats != null)
+        // --- แก้ไขจุดที่ 4: ส่งค่า EXP เข้า PlayerController ด้วยฟังก์ชัน AddExp ---
+        if (playerController != null)
         {
-            playerStats.AddExperience(expAmount);
+            playerController.AddExp(expAmount);
         }
 
         Destroy(gameObject);

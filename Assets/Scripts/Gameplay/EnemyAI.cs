@@ -59,6 +59,19 @@ public class EnemyAI : MonoBehaviour
         {
             PerformAttack();
         }
+
+        // --- แก้ไขจุดสำคัญ: ส่งค่าความเร็วจริง (Float) ไปยัง Parameter "Speed" ใน Animator ---
+        UpdateAnimation();
+    }
+
+    private void UpdateAnimation()
+    {
+        if (anim != null && agent != null)
+        {
+            // ดึงความเร็วการเคลื่อนที่จริงส่งให้ตัวแปร Speed ของ Animator
+            float currentSpeed = agent.velocity.magnitude;
+            anim.SetFloat("Speed", currentSpeed);
+        }
     }
 
     private void StopMoving()
@@ -67,11 +80,6 @@ public class EnemyAI : MonoBehaviour
         {
             agent.isStopped = true;
             agent.ResetPath();
-        }
-
-        if (anim != null)
-        {
-            anim.SetBool("IsMoving", false);
         }
     }
 
@@ -82,11 +90,6 @@ public class EnemyAI : MonoBehaviour
             agent.isStopped = false;
             agent.SetDestination(playerTransform.position);
         }
-
-        if (anim != null)
-        {
-            anim.SetBool("IsMoving", true);
-        }
     }
 
     private void PerformAttack()
@@ -94,11 +97,6 @@ public class EnemyAI : MonoBehaviour
         if (agent.isOnNavMesh)
         {
             agent.isStopped = true;
-        }
-
-        if (anim != null)
-        {
-            anim.SetBool("IsMoving", false);
         }
 
         Vector3 direction = (playerTransform.position - transform.position).normalized;
@@ -115,10 +113,10 @@ public class EnemyAI : MonoBehaviour
                 anim.SetTrigger("Attack");
             }
 
-            PlayerStats playerStats = playerTransform.GetComponent<PlayerStats>();
-            if (playerStats != null)
+            PlayerController player = playerTransform.GetComponent<PlayerController>();
+            if (player != null)
             {
-                playerStats.TakeDamage(attackDamage);
+                player.TakeDamage(attackDamage);
             }
 
             nextAttackTime = Time.time + attackCooldown;
@@ -132,7 +130,7 @@ public class EnemyAI : MonoBehaviour
         currentHealth -= amount;
         Debug.Log($"{gameObject.name} took {amount} damage! Current HP: {currentHealth}");
 
-        chaseRange = 30f; // ถ้าโดนดาเมจจะหันมาไล่กวดทันที
+        chaseRange = 30f; // โดนยิงแล้ววิ่งกวดทันที
 
         if (currentHealth <= 0)
         {
@@ -162,14 +160,13 @@ public class EnemyAI : MonoBehaviour
             anim.SetTrigger("Die");
         }
 
-        // เสกลูกแก้ว EXP กระจายระดับพื้น
         if (expOrbPrefab != null)
         {
             for (int i = 0; i < dropOrbCount; i++)
             {
                 Vector3 spawnOffset = new Vector3(
                     Random.Range(-0.25f, 0.25f),
-                    0.2f, // ลดระดับความสูงตอนเกิดให้ต่ำลงมา
+                    0.2f,
                     Random.Range(-0.25f, 0.25f)
                 );
 

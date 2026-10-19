@@ -126,7 +126,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2eb7a43d44b09a640a5c41928c0ec1c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ExpOrb
-  expAmount: 50
+  expAmount: 10
   rotateSpeed: 100
   delayBeforeMagnet: 0.5
   magnetRange: 5

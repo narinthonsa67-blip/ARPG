@@ -1,25 +1,25 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class LevelManager : MonoBehaviour
 {
     public string sceneName;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+
+    public void LoadScene(string name)
     {
-        
+        SceneManager.LoadScene(name);
     }
 
-    // Update is called once per frame
-    void Update()
+    public void ExitGame()
     {
-        
-    }
+        Debug.Log("Game Exited");
 
-    public void LoadScene()
-    {
-        SceneManager.LoadScene(sceneName);
+#if UNITY_EDITOR
+            // หยุดการทำงานของ Play Mode ใน Unity Editor ตอนทดสอบ
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+        // ปิดโปรแกรมเกมจริงๆ เมื่อ Build เป็นไฟล์ .exe แล้ว
+        Application.Quit();
+#endif
     }
 }
