@@ -27,7 +27,7 @@ Tui Dui Man The Arena
 
 67114640304 นรินทร สายเนตร : player-controller
 
-671146460290 นภัทร์สกร ภามี : stats-loot
+67114640290 นภัทร์สกร ภามี : stats-loot
 
 67114640333 นิธิพัฒน์ โภคสวัสดิ์ : level-spawner
 
